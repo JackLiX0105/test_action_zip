@@ -2,6 +2,8 @@ name: Zip Files on Push
 
 on:
   push:
+    tags:
+      - 'v*' # Trigger on tags matching 'v*', e.g., v1.0.0
     branches:
       - main
 
@@ -19,9 +21,24 @@ jobs:
       run: |
         zip -r lc-tracker_deployment.zip src_test
 
-    # Step 3: Upload the ZIP file as an artifact (optional)
-    - name: Upload ZIP file
-      uses: actions/upload-artifact@v3
+     # Step 3: Upload the zip as a release asset
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
       with:
-        name: src-directory-zip
-        path: lc-tracker_deployment.zip
+          tag_name: ${{ github.ref_name }} # Use the tag name from the trigger
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            This is an automated release.
+          draft: false
+          prerelease: false
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Asset
+      uses: actions/upload-release-asset@v1
+      with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release${{ github.ref_name }}.zip
+          asset_name: release${{ github.ref_name }}.zip
+          asset_content_type: application/zip
