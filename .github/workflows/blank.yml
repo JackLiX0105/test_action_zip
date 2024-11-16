@@ -1,42 +1,42 @@
-name: Zip Files on Push
+name: Create and Upload Release Zip
 
 on:
   push:
     tags:
-      - 'v*' # Trigger on tags matching 'v*', e.g., v1.0.0
+      - 'v*'  # Match tags that follow the pattern 'v*', e.g., v1.0.0
+    branches:
+      - 'main'  # Only trigger for tags pushed to the 'main' branch
 
 jobs:
-  zip-files:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # Step 2: Create a ZIP file of all files in /src
-    - name: Zip repository contents
-      run: |
-        zip -r lc-tracker_deployment.zip src_test
+      - name: Zip files
+        run: |
+          zip -r release.zip src_test  # Replace 'folder_name' with the actual folder to zip
+          ls -lh release.zip  # Check the size of the zip file
 
-     # Step 3: Upload the zip as a release asset
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      with:
-          tag_name: ${{ github.ref_name }} # Use the tag name from the trigger
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}  # Use the tag name that triggered the workflow
           release_name: Release ${{ github.ref_name }}
           body: |
             This is an automated release.
           draft: false
           prerelease: false
-      env:
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Asset
-      uses: actions/upload-release-asset@v1
-      with:
+      - name: Upload Asset
+        uses: actions/upload-release-asset@v1
+        with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release${{ github.ref_name }}.zip
-          asset_name: release${{ github.ref_name }}.zip
+          asset_path: release.zip
+          asset_name: release.zip
           asset_content_type: application/zip
