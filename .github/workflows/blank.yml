@@ -2,10 +2,10 @@ name: Create and Upload Release Zip
 
 on:
   push:
+    tags:
+      - 'v*'  # Match tags starting with v
     branches:
       - 'main'  # Only trigger for tags pushed to the 'main' branch
-    tags:
-      - 'v*'  # Match tags that follow the pattern 'v*', e.g., v1.0.0
 
 jobs:
   release:
@@ -15,10 +15,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Check if release exists
+        id: check_release
+        run: |
+          # Check if release with the tag exists by calling GitHub API
+          TAG_NAME="${{ github.ref_name }}"
+          RESPONSE=$(curl -s --header "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}")
+          
+          # Check if the response contains the 'id' field (which means the release exists)
+          if [[ "$(echo $RESPONSE | jq -r .id)" != "null" ]]; then
+            echo "Release with tag $TAG_NAME already exists. Skipping release creation."
+            echo "release_exists=true" >> $GITHUB_ENV
+          else
+            echo "Release with tag $TAG_NAME does not exist. Proceeding with creation."
+            echo "release_exists=false" >> $GITHUB_ENV
+          fi
+
       - name: Zip files
         run: |
-          zip -r release.zip src_test  # Replace 'folder_name' with the actual folder to zip
+          zip -r release.zip src_test  # Replace 'src_test' with your actual folder name
           ls -lh release.zip  # Check the size of the zip file
+        if: env.release_exists == 'false'  # Only run if release doesn't exist
 
       - name: Create Release
         id: create_release
@@ -32,6 +50,7 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.release_exists == 'false'  # Only run if release doesn't exist
 
       - name: Upload Asset
         uses: actions/upload-release-asset@v1
@@ -40,5 +59,4 @@ jobs:
           asset_path: release.zip
           asset_name: release.zip
           asset_content_type: application/zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.release_exists == 'false'  # Only run if release doesn't exist
